@@ -2,9 +2,8 @@ import React from 'react'
 import { View, Image, Text, TouchableOpacity, Platform, Alert} from 'react-native';
 import Slider from '@react-native-community/slider';
 import Sound from 'react-native-sound';
-import { audioData } from './AudioData';
-const img_pause = require('./resources/ui_pause.png');
-const img_play = require('./resources/ui_play.png');
+const img_pause = require('./resources/audio/ui_pause.png');
+const img_play = require('./resources/audio/ui_play.png');
 
 
 
@@ -69,9 +68,8 @@ export default class PlayerScreen extends React.Component{
             this.sound.play(this.playComplete(true));
             this.setState({ playState: 'playing' });
         } else {
-            const item = audioData[this.props.index];
-            console.log(item)
-            this.sound = new Sound(item.url, '', (error, _sound) => {
+            const AudioUrl = this.props.audio;
+            this.sound = new Sound(AudioUrl, '', (error, _sound) => {
                 if (error) {
                     console.log('Error loading sound: ', error);
                 } else {

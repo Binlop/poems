@@ -1,143 +1,176 @@
-import React, { useState } from 'react';
-import { Button, Text, View, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView } from 'react-native';
-import { poemData } from './spiritual_texts.js';
+import React, { useState, useEffect } from 'react';
+import { Text, View, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView, Appearance } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 
-export const HomeScreen = ({ navigation }) => {
+// Определение тем
+const themes = {
+  light: {
+    background: '#ffffff', // Фон контейнера
+    blockBackground: '#ededed', // Фон блоков стихов
+    textPrimary: '#333333', // Основной текст
+    textSecondary: '#555555', // Вторичный текст (подзаголовки)
+    border: '#cccccc', // Границы
+    searchBackground: '#ffffff', // Фон поиска
+    searchText: '#999999', // Текст ввода поиска
+    placeholderText: '#999999', // Placeholder поиска
+    iconTint: '#000000', // Цвет иконок
+  },
+  dark: {
+    background: '#222222',
+    blockBackground: '#333333',
+    textPrimary: '#ffffff',
+    textSecondary: '#cccccc',
+    border: '#444444',
+    searchBackground: '#333333',
+    searchText: '#ffffff',
+    placeholderText: '#999999',
+    iconTint: '#ffffff',
+  },
+};
+
+// Хук для получения текущей темы
+const useTheme = () => {
+  const colorScheme = Appearance.getColorScheme();
+  return themes[colorScheme] || themes.light; // Fallback на светлую тему
+};
+
+export const HomeScreen = ({ navigation, onlyFavorites }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [favorites, setFavorites] = useState([]);
+  const [poemsData, setPoemsData] = useState([]);
+  const GOOGLE_DRIVE_URL = 'https://drive.google.com/uc?export=download&id=1JlcdG69UTU2KlkyiXtdMZdrwPhl26NOz';
 
-  const poems = [
-    {
-      title: 'Слава в вышних Богу',
-      subtitle: 'Слава, слава в вышних Богу!',
-      text: poemData[0],
-      executor: 'Мужской хор Параклит',
-      numberAudio: 0,
-    },
-    {
-      title: 'Слезы ливше о Сионе',
-      subtitle: 'Слезы ливше о Сионе',
-      text: poemData[1],
-      executor: 'Мужской хор Параклит',
-      numberAudio: 1,
-    },
-    {
-      title: 'Притча о блудном сыне',
-      subtitle: 'Человек бе некто богатый',
-      text: poemData[2],
-      executor: 'Новосибирский молодежный хор',
-      numberAudio: 2,
-    },
-    {
-      title: 'Рожество Христово',
-      subtitle: 'Рожество Христово – Ангел прилетел',
-      text: poemData[3],
-      executor: 'Новосибирский молодежный хор',
-      numberAudio: 3,
-    },
-    {
-      title: 'Об Иосафе царевиче',
-      subtitle: 'Из пустыни старец в царский дом приходит',
-      text: poemData[4],
-      executor: 'Новосибирский молодежный хор',
-      numberAudio: 4,
-    },
-    {
-      title: 'Плач всеродного Адама',
-      subtitle: 'Седе Адам прямо рая',
-      text: poemData[5],
-      executor: 'Новосибирский молодежный хор',
-      numberAudio: 5,
-    },
-    {
-      title: 'Запевайте, христиане',
-      subtitle: 'Запевайте, христиане',
-      text: poemData[6],
-      executor: 'Новосибирский молодежный хор',
-      numberAudio: 6,
-    },
-    {
-      title: 'Христос и самарянка',
-      subtitle: 'Под тенью навеса, на выступе гладком',
-      text: poemData[7],
-      executor: 'Новосибирский молодежный хор',
-      numberAudio: 7,
-    },
-    {
-      title: 'Взглянь, грешник',
-      subtitle: 'Кто поднимет свой взор на Христа на Кресте',
-      text: poemData[8],
-      executor: 'Новосибирский молодежный хор',
-      numberAudio: 8,
-    },
-    {
-      title: 'Се Жених грядет',
-      subtitle: 'Пробудись от сна, друг бедный',
-      text: poemData[9],
-      executor: 'Новосибирский молодежный хор',
-      numberAudio: 9,
-    },
-    {
-      title: 'О Содоме',
-      subtitle: 'Вечер, сумерки настали',
-      text: poemData[10],
-      executor: 'Новосибирский молодежный хор',
-      numberAudio: 10,
-    },
-    {
-      title: 'О ВОСКРЕСЕНИИ ХРИСТА',
-      subtitle: 'Спит Сион и дремлет злоба',
-      text: poemData[11],
-      executor: 'Новосибирский молодежный хор',
-      numberAudio: 11,
-    },
-  ];
+  const theme = useTheme(); // Получение текущей темы
 
-  const filteredPoems = poems.filter(
-    (poem) =>
-      poem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      poem.text.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Загрузка данных стихов
+  useEffect(() => {
+    const loadPoemsData = async () => {
+      try {
+        const state = await NetInfo.fetch();
+        const isConnected = state.isConnected;
 
+        if (isConnected) {
+          const response = await fetch(GOOGLE_DRIVE_URL);
+          if (!response.ok) {
+            throw new Error('Failed to fetch poems data');
+          }
+          const data = await response.json();
+          setPoemsData(data);
+          await AsyncStorage.setItem('poems_data', JSON.stringify(data));
+        } else {
+          const localData = await AsyncStorage.getItem('poems_data');
+          if (localData) {
+            setPoemsData(JSON.parse(localData));
+          } else {
+            console.warn('No local data available and no internet connection');
+            setPoemsData([]);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading poems data:', error);
+        const localData = await AsyncStorage.getItem('poems_data');
+        if (localData) {
+          setPoemsData(JSON.parse(localData));
+        }
+      }
+    };
+    loadPoemsData();
+  }, []);
+
+  // Загрузка избранного
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const storedFavorites = await AsyncStorage.getItem('favorites');
+        if (storedFavorites) {
+          setFavorites(JSON.parse(storedFavorites));
+        }
+      } catch (error) {
+        console.error('Error loading favorites:', error);
+      }
+    };
+    loadFavorites();
+  }, []);
+
+  // Сохранение избранного
+  useEffect(() => {
+    const saveFavorites = async () => {
+      try {
+        await AsyncStorage.setItem('favorites', JSON.stringify(favorites));
+      } catch (error) {
+        console.error('Error saving favorites:', error);
+      }
+    };
+    saveFavorites();
+  }, [favorites]);
+
+  // Переключение статуса избранного
+  const toggleFavorite = (poemTitle) => {
+    setFavorites((prevFavorites) =>
+      prevFavorites.includes(poemTitle)
+        ? prevFavorites.filter((title) => title !== poemTitle)
+        : [...prevFavorites, poemTitle]
+    );
+  };
+
+  // Фильтрация стихов
+  const filteredPoems = poemsData
+    .filter((poem) => {
+      const matchesSearch =
+        poem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        poem.text.toLowerCase().includes(searchQuery.toLowerCase());
+      const isFavorite = favorites.includes(poem.title);
+      return onlyFavorites ? isFavorite && matchesSearch : matchesSearch;
+    })
+    .sort((a, b) => a.title.localeCompare(b.title, 'ru-RU'));
+
+  // Стили с использованием темы
   const styles = StyleSheet.create({
     container: {
       flex: 1,
       padding: 10,
+      backgroundColor: theme.background,
     },
     searchContainer: {
       position: 'absolute',
       bottom: 60,
       left: 20,
       right: 20,
-      backgroundColor: 'white',
+      backgroundColor: theme.searchBackground,
       padding: 10,
       borderRadius: 5,
       elevation: 5,
     },
     searchInput: {
       height: 40,
-      borderColor: '#ccc',
+      borderColor: theme.border,
       borderWidth: 1,
       paddingLeft: 8,
       width: '100%',
+      color: theme.searchText,
     },
     childContainer: {
       width: '100%',
-      height: 70,
-      backgroundColor: '#ededed',
+      height: 80,
+      backgroundColor: theme.blockBackground,
       justifyContent: 'center',
       paddingLeft: 20,
       marginBottom: 10,
+      position: 'relative',
     },
     titleText: {
       fontSize: 16,
-      color: 'black',
+      color: theme.textPrimary,
       textAlignVertical: 'center',
       lineHeight: 24,
+      width: '70%',
     },
     subTitleText: {
       fontSize: 14,
-      color: 'black',
+      color: theme.textSecondary,
+      width: '70%',
     },
     searchIconContainer: {
       position: 'absolute',
@@ -148,38 +181,92 @@ export const HomeScreen = ({ navigation }) => {
     searchIcon: {
       width: 50,
       height: 50,
+      tintColor: theme.iconTint, // Поддержка тёмной темы для иконки
+    },
+    favoriteIcon: {
+      width: 20,
+      height: 20,
+      position: 'absolute',
+      right: 0,
+      top: '50%',
+      tintColor: theme.iconTint,
+    },
+    musicIcon: {
+      width: 20,
+      height: 20,
+      position: 'absolute',
+      right: 50,
+      top: '50%',
+      alignSelf: 'center',
+      marginTop: -10,
+      tintColor: theme.iconTint,
     },
     scrollViewContainer: {
-      paddingBottom: 80, // Добавляем отступ снизу, чтобы учесть прокрутку
+      paddingBottom: 80,
+    },
+    placeholderText: {
+      textAlign: 'center',
+      marginTop: 20,
+      color: theme.textSecondary,
+      fontSize: 16,
     },
   });
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollViewContainer}>
-      {filteredPoems.map((poem, index) => (
-        <TouchableOpacity
-          key={index}
-          style={styles.childContainer}
-          onPress={() =>
-            navigation.navigate('VerseComponent', {
-              title: poem.title,
-              text: poem.text,
-              executor: poem.executor,
-              numberAudio: poem.numberAudio,
-            })
-          }
-        >
-          <Text style={styles.titleText}>{poem.title.toUpperCase()}</Text>
-          <Text style={styles.subTitleText}>{poem.subtitle}</Text>
-        </TouchableOpacity>
-      ))}
+        {filteredPoems.length === 0 ? (
+          <Text style={styles.placeholderText}>
+            {onlyFavorites ? 'Нет избранных стихов' : 'Стихи не найдены'}
+          </Text>
+        ) : (
+          filteredPoems.map((poem, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.childContainer}
+              onPress={() =>
+                navigation.navigate('VerseComponent', {
+                  title: poem.title,
+                  text: poem.text,
+                  executor: poem.executor,
+                  audio: poem.audio,
+                })
+              }
+            >
+              <Text style={styles.titleText}>{poem.title.toUpperCase()}</Text>
+              <Text style={styles.subTitleText}>{poem.subtitle}</Text>
+              {poem.audio ? (
+                <Image
+                  source={require('./resources/musical-note.png')}
+                  style={styles.musicIcon}
+                />
+              ) : null}
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation();
+                  toggleFavorite(poem.title);
+                }}
+                style={{ position: 'absolute', right: 20, top: '50%', marginTop: -10 }}
+              >
+                <Image
+                  source={
+                    favorites.includes(poem.title)
+                      ? require('./resources/star-filled.png')
+                      : require('./resources/star.png')
+                  }
+                  style={styles.favoriteIcon}
+                />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
       {isSearchVisible && (
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.searchInput}
             placeholder="Поиск..."
+            placeholderTextColor={theme.placeholderText}
             value={searchQuery}
             onChangeText={(text) => setSearchQuery(text)}
           />
@@ -190,7 +277,7 @@ export const HomeScreen = ({ navigation }) => {
         onPress={() => setIsSearchVisible(!isSearchVisible)}
       >
         <Image
-          source={require('./search-icon.png')}
+          source={require('./resources/search-icon.png')}
           style={styles.searchIcon}
         />
       </TouchableOpacity>

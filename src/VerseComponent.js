@@ -3,13 +3,11 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {Button, Text, View, StyleSheet, Appearance, TouchableOpacity, SafeAreaView, ScrollView} from 'react-native'; // Импортируем компоненты Button и Text из react-native
 import Slider from '@react-native-community/slider';
-import Sound from 'react-native-sound';
-import { audioData } from './AudioData'; // Импорт файла данных
 import PlayerScreen from './Audio'
 
 // Отображение 1 стиха
 export const VerseComponent =({navigation, route}) => {
-    const { title, text, executor, numberAudio } = route.params;
+    const { title, text, executor, audio } = route.params;
     const [fontSize, setFontSize] = useState(18);
 
   React.useLayoutEffect(() => {
@@ -21,12 +19,12 @@ export const VerseComponent =({navigation, route}) => {
     fontSize: fontSize, // Динамически задаем размер шрифта
     };
 
-const AudioView = ({ index, executor }) => {
+const AudioView = ({ audio, executor }) => {
     return (
-        <View style={styles.feature} key={index}>
+        <View style={styles.feature}>
             <PlayerScreen
                 audioCreator={executor}
-                index={index}
+                audio={audio}
             />
         </View>
     );
@@ -121,9 +119,12 @@ const AudioView = ({ index, executor }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollViewContainer}>
-       <View style={styles.containerSound}>
-           <AudioView index={numberAudio} executor={executor}/>
-       </View>
+        {audio ? (
+          <View style={styles.containerSound}>
+              <AudioView audio={audio} executor={executor}/>
+          </View>
+        ) : null}
+
         <Text style={styles.text}>
           {text}
         </Text>
